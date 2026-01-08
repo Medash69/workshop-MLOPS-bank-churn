@@ -43,6 +43,16 @@ async def load_model():
     except Exception as e:
         logger.error(f"Erreur chargement : {e}")
 
+@app.get("/", tags=["General"])
+def root():
+    """Endpoint racine de l'API"""
+    return {
+        "message": "Bank Churn Prediction API",
+        "version": "1.0.0",
+        "status": "running",
+        "docs": "/docs"
+    }
+
 @app.get("/health", response_model=HealthResponse)
 def health():
     return {"status": "healthy", "is_model_active": model is not None}
