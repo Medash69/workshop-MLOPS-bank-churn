@@ -15,6 +15,7 @@ env:
   IMAGE_NAME: bank-churn-api
   STREAMLIT_IMAGE_NAME: bank-churn-streamlit
   LOCATION: swedencentral
+  CONTAINER_ENV_NAME: env-nlp     # Environnement existant
 
 jobs:
   # ============================================================
@@ -94,20 +95,6 @@ jobs:
           docker push ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
           echo "✅ API image pushed successfully"
       
-      - name: Create or Update Container Apps Environment
-        uses: azure/CLI@v1
-        with:
-          inlineScript: |
-            # Check if environment exists, create if not
-            if ! az containerapp env show --name env-mlops-workshop --resource-group ${{ env.AZURE_RESOURCE_GROUP }} 2>/dev/null; then
-              echo "🆕 Creating Container Apps Environment..."
-              az containerapp env create \
-                --name env-mlops-workshop \
-                --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-                --location ${{ env.LOCATION }}
-            fi
-            echo "✅ Environment ready"
-      
       - name: Deploy API to Azure Container Apps
         uses: azure/CLI@v1
         with:
@@ -124,7 +111,7 @@ jobs:
               az containerapp create \
                 --name ${{ env.CONTAINER_APP_NAME }} \
                 --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-                --environment env-mlops-workshop \
+                --environment ${{ env.CONTAINER_ENV_NAME }} \
                 --image ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} \
                 --target-port 8000 \
                 --ingress external \
@@ -211,7 +198,7 @@ jobs:
               az containerapp create \
                 --name ${{ env.STREAMLIT_APP_NAME }} \
                 --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-                --environment env-mlops-workshop \
+                --environment ${{ env.CONTAINER_ENV_NAME }} \
                 --image ${{ env.ACR_NAME }}.azurecr.io/${{ env.STREAMLIT_IMAGE_NAME }}:${{ github.sha }} \
                 --target-port 8501 \
                 --ingress external \
