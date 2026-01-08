@@ -1,114 +1,314 @@
-# 🏦 Bank Churn Prediction - MLOps Workshop
+# 🏦 Bank Churn Prediction - MLOps Workshop Complet
 
 [![CI/CD Pipeline](https://github.com/Medash69/workshop-MLOPS-bank-churn/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/Medash69/workshop-MLOPS-bank-churn/actions/workflows/ci-cd.yml)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104.1-009688.svg)](https://fastapi.tiangolo.com/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.29.0-FF4B4B.svg)](https://streamlit.io/)
+[![Azure](https://img.shields.io/badge/Azure-Container%20Apps-0078D4.svg)](https://azure.microsoft.com/)
 
-Application MLOps complète pour la prédiction de churn client bancaire, déployée sur Azure avec CI/CD automatisé.
+---
 
-## 🎯 Fonctionnalités
+## 📋 Table des Matières
 
-- **🔮 Prédiction ML** : Modèle Random Forest pour prédire le risque de départ client
-- **📊 Dashboard Streamlit** : Interface interactive pour les prédictions et visualisations
-- **🔌 API REST** : Endpoints FastAPI pour l'intégration
-- **⚠️ Détection de Drift** : Monitoring des changements de distribution des données
-- **🚀 CI/CD** : Pipeline GitHub Actions avec déploiement Azure automatisé
-- **📈 MLflow** : Tracking des expériences et versioning des modèles
-- **🐳 Docker** : Conteneurisation complète
+1. [Présentation du Projet](#-présentation-du-projet)
+2. [Architecture](#-architecture)
+3. [URLs de Production](#-urls-de-production)
+4. [Prérequis](#-prérequis)
+5. [Installation Complète](#-installation-complète)
+6. [Entraînement du Modèle](#-entraînement-du-modèle)
+7. [Lancement de l'Application](#-lancement-de-lapplication)
+8. [API FastAPI](#-api-fastapi)
+9. [Dashboard Streamlit](#-dashboard-streamlit)
+10. [Détection de Data Drift](#-détection-de-data-drift)
+11. [Conteneurisation Docker](#-conteneurisation-docker)
+12. [Déploiement Azure](#-déploiement-azure)
+13. [Pipeline CI/CD GitHub Actions](#-pipeline-cicd-github-actions)
+14. [MLflow Tracking](#-mlflow-tracking)
+15. [Tests](#-tests)
+16. [Structure du Projet](#-structure-du-projet)
+17. [Commandes Utiles](#-commandes-utiles)
+18. [Dépannage](#-dépannage)
 
-## 📁 Structure du Projet
+---
+
+## 🎯 Présentation du Projet
+
+Ce projet MLOps complet prédit le **churn client bancaire** (risque de départ) en utilisant un modèle de Machine Learning. Il inclut :
+
+- **Modèle ML** : Random Forest Classifier avec tracking MLflow
+- **API REST** : FastAPI avec endpoints de prédiction
+- **Dashboard** : Interface Streamlit interactive
+- **Monitoring** : Détection de data drift
+- **CI/CD** : Pipeline automatisé GitHub Actions
+- **Cloud** : Déploiement sur Azure Container Apps
+
+### Contexte Business
+Une banque souhaite prédire quels clients risquent de partir pour proposer des actions de rétention proactives.
+
+### Dataset
+- **10 features** : CreditScore, Age, Tenure, Balance, NumOfProducts, HasCrCard, IsActiveMember, EstimatedSalary, Geography_Germany, Geography_Spain
+- **Target** : Exited (0 = reste, 1 = part)
+- **Taille** : 10,000 clients
+
+---
+
+## 🏗 Architecture
 
 ```
-bank-churn-mlops/
-├── app/                          # Code de l'API
-│   ├── main.py                   # Endpoints FastAPI
-│   ├── models.py                 # Schémas Pydantic
-│   ├── drift_detect.py           # Détection de drift
-│   └── utils.py                  # Fonctions utilitaires
-├── data/                         # Données
-│   ├── bank_churn.csv            # Dataset d'entraînement
-│   └── production_data.csv       # Données de production
-├── model/                        # Modèles sauvegardés
-│   └── churn_model.pkl           # Modèle entraîné
-├── tests/                        # Tests unitaires
-├── mlruns/                       # Expériences MLflow
-├── .github/workflows/            # CI/CD
-│   └── ci-cd.yml                 # Pipeline GitHub Actions
-├── streamlit_app.py              # Dashboard Streamlit
-├── train_model.py                # Script d'entraînement
-├── Dockerfile                    # Image Docker API
-├── Dockerfile.streamlit          # Image Docker Dashboard
-├── docker-compose.yml            # Orchestration Docker
-├── requirements.txt              # Dépendances Python
-├── start.bat                     # Script démarrage Windows
-└── start.sh                      # Script démarrage Linux/Mac
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   GitHub Repo   │───▶│ GitHub Actions  │───▶│  Azure ACR      │
+│                 │    │   (CI/CD)       │    │  (Container     │
+│  - Code         │    │  - Tests        │    │   Registry)     │
+│  - Dockerfile   │    │  - Build        │    │                 │
+│  - Workflows    │    │  - Deploy       │    │                 │
+└─────────────────┘    └─────────────────┘    └────────┬────────┘
+                                                       │
+                                                       ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Streamlit     │◀───│ Azure Container │◀───│   FastAPI       │
+│   Dashboard     │    │     Apps        │    │     API         │
+│   :8501         │    │                 │    │    :8000        │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
-## 🚀 Démarrage Rapide
+---
 
-### Prérequis
+## 🌐 URLs de Production
 
-- Python 3.9+
-- Docker Desktop (optionnel)
-- Git
+| Service | URL |
+|---------|-----|
+| **📊 Dashboard Streamlit** | https://bank-churn-dashboard.ashywater-496e8508.swedencentral.azurecontainerapps.io |
+| **🔌 API FastAPI** | https://bank-churn.ashywater-496e8508.swedencentral.azurecontainerapps.io |
+| **📚 API Documentation** | https://bank-churn.ashywater-496e8508.swedencentral.azurecontainerapps.io/docs |
+| **📦 GitHub Repository** | https://github.com/Medash69/workshop-MLOPS-bank-churn |
 
-### Installation
+---
+
+## 📦 Prérequis
+
+### Logiciels Requis
+
+| Logiciel | Version | Téléchargement |
+|----------|---------|----------------|
+| Python | 3.9+ | https://www.python.org/downloads/ |
+| Git | Latest | https://git-scm.com/downloads |
+| Docker Desktop | Latest | https://www.docker.com/products/docker-desktop |
+| Azure CLI | Latest | https://docs.microsoft.com/cli/azure/install-azure-cli |
+| VS Code | Latest | https://code.visualstudio.com/ |
+
+### Vérification des Installations
 
 ```bash
-# Cloner le repo
-git clone https://github.com/Medash69/workshop-MLOPS-bank-churn.git
-cd workshop-MLOPS-bank-churn
+# Python
+python --version
+# Doit afficher: Python 3.9.x ou supérieur
 
-# Créer un environnement virtuel
+# Git
+git --version
+
+# Docker
+docker --version
+docker ps
+
+# Azure CLI
+az --version
+```
+
+### Comptes Nécessaires
+
+- **GitHub** : https://github.com/signup
+- **Azure for Students (100$)** : https://azure.microsoft.com/students
+
+---
+
+## 🚀 Installation Complète
+
+### Étape 1 : Cloner le Repository
+
+```bash
+# Cloner le projet
+git clone https://github.com/Medash69/workshop-MLOPS-bank-churn.git
+
+# Aller dans le dossier
+cd workshop-MLOPS-bank-churn
+```
+
+### Étape 2 : Créer l'Environnement Virtuel
+
+```bash
+# Créer l'environnement virtuel
 python -m venv venv
 
-# Activer l'environnement
-# Windows:
-venv\Scripts\activate
-# Linux/Mac:
-source venv/bin/activate
+# Activer l'environnement (Windows PowerShell)
+.\venv\Scripts\Activate.ps1
 
-# Installer les dépendances
+# Activer l'environnement (Windows CMD)
+venv\Scripts\activate.bat
+
+# Activer l'environnement (Linux/Mac)
+source venv/bin/activate
+```
+
+### Étape 3 : Installer les Dépendances
+
+```bash
+# Mettre à jour pip
+pip install --upgrade pip
+
+# Installer toutes les dépendances
 pip install -r requirements.txt
 ```
 
-### Entraînement du Modèle
+### Étape 4 : Générer les Données (si nécessaire)
 
 ```bash
+# Générer le dataset synthétique
+python generate_data.py
+```
+
+---
+
+## 🎓 Entraînement du Modèle
+
+### Lancer l'Entraînement
+
+```bash
+# Entraîner le modèle Random Forest
 python train_model.py
 ```
 
-### Démarrage des Services
+### Résultat Attendu
 
-#### Option 1 : Mode Local (Windows)
+```
+Chargement des donnees...
+Dataset : 10000 lignes, 11 colonnes
+Taux de churn : 23.45%
+
+Train : 8000 lignes
+Test : 2000 lignes
+
+Entrainement du modele...
+
+==================================================
+RESULTATS DE L'ENTRAINEMENT
+==================================================
+Accuracy  : 0.8650
+Precision : 0.7823
+Recall    : 0.6542
+F1 Score  : 0.7125
+ROC AUC   : 0.8934
+==================================================
+
+Modele sauvegarde dans : model/churn_model.pkl
+MLflow UI : mlflow ui --port 5000
+```
+
+### Visualiser les Expériences MLflow
+
+```bash
+# Lancer l'interface MLflow
+mlflow ui --port 5000
+
+# Ouvrir dans le navigateur
+# http://localhost:5000
+```
+
+---
+
+## ▶️ Lancement de l'Application
+
+### Option 1 : Mode Local Simple (Recommandé pour le développement)
+
+```bash
+# Terminal 1 : Lancer l'API FastAPI
+uvicorn app.main:app --reload --port 8000
+
+# Terminal 2 : Lancer le Dashboard Streamlit
+streamlit run streamlit_app.py --server.port 8501
+```
+
+### Option 2 : Utiliser les Scripts de Lancement
+
+**Windows (PowerShell ou CMD) :**
 ```batch
+# Lancer API + Dashboard
 start.bat local
+
+# Lancer uniquement l'API
+start.bat api-only
+
+# Lancer uniquement le Dashboard
+start.bat streamlit-only
 ```
 
-#### Option 2 : Mode Local (Linux/Mac)
+**Linux/Mac :**
 ```bash
+# Rendre le script exécutable
 chmod +x start.sh
+
+# Lancer API + Dashboard
 ./start.sh local
+
+# Lancer uniquement l'API
+./start.sh api-only
+
+# Lancer uniquement le Dashboard
+./start.sh streamlit-only
 ```
 
-#### Option 3 : Avec Docker
+### Option 3 : Avec Docker Compose
+
 ```bash
+# Construire et lancer tous les services
 docker-compose up --build
+
+# Lancer en arrière-plan
+docker-compose up --build -d
+
+# Arrêter les services
+docker-compose down
 ```
 
-### Accès aux Services
+### URLs Locales
 
-| Service | URL | Description |
-|---------|-----|-------------|
-| API FastAPI | http://localhost:8000 | API REST |
-| API Docs | http://localhost:8000/docs | Documentation Swagger |
-| Dashboard | http://localhost:8501 | Interface Streamlit |
-| MLflow UI | http://localhost:5000 | Tracking des expériences |
+| Service | URL |
+|---------|-----|
+| API FastAPI | http://localhost:8000 |
+| API Documentation (Swagger) | http://localhost:8000/docs |
+| API Documentation (ReDoc) | http://localhost:8000/redoc |
+| Dashboard Streamlit | http://localhost:8501 |
+| MLflow UI | http://localhost:5000 |
 
-## 📡 API Endpoints
+---
 
-### Prédiction Simple
+## 🔌 API FastAPI
+
+### Endpoints Disponibles
+
+| Méthode | Endpoint | Description |
+|---------|----------|-------------|
+| GET | `/` | Informations sur l'API |
+| GET | `/health` | Health check |
+| POST | `/predict` | Prédiction simple |
+| POST | `/predict/batch` | Prédictions en lot |
+| POST | `/drift/check` | Vérification du drift |
+
+### Exemple : Health Check
+
+```bash
+curl http://localhost:8000/health
+```
+
+**Réponse :**
+```json
+{
+  "status": "healthy",
+  "is_model_active": true
+}
+```
+
+### Exemple : Prédiction Simple
+
 ```bash
 curl -X POST "http://localhost:8000/predict" \
   -H "Content-Type: application/json" \
@@ -126,7 +326,7 @@ curl -X POST "http://localhost:8000/predict" \
   }'
 ```
 
-### Réponse
+**Réponse :**
 ```json
 {
   "churn_probability": 0.2345,
@@ -135,29 +335,75 @@ curl -X POST "http://localhost:8000/predict" \
 }
 ```
 
-### Health Check
-```bash
-curl http://localhost:8000/health
+### Exemple avec Python
+
+```python
+import requests
+
+url = "http://localhost:8000/predict"
+data = {
+    "CreditScore": 650,
+    "Age": 35,
+    "Tenure": 5,
+    "Balance": 50000,
+    "NumOfProducts": 2,
+    "HasCrCard": 1,
+    "IsActiveMember": 1,
+    "EstimatedSalary": 75000,
+    "Geography_Germany": 0,
+    "Geography_Spain": 1
+}
+
+response = requests.post(url, json=data)
+print(response.json())
 ```
 
 ### Vérification du Drift
+
 ```bash
 curl -X POST "http://localhost:8000/drift/check?threshold=0.05"
 ```
 
+---
+
 ## 📊 Dashboard Streamlit
 
-Le dashboard offre 5 sections :
+Le dashboard offre 5 pages interactives :
 
-1. **🎯 Prédiction** : Formulaire interactif pour prédire le churn
-2. **📊 Exploration** : Visualisations des données (distributions, corrélations)
-3. **⚠️ Détection de Drift** : Analyse des changements de distribution
-4. **📈 Métriques** : Performance du modèle (accuracy, precision, recall, F1, AUC)
-5. **🔧 Configuration** : État des services et actions de maintenance
+### 1. 🎯 Prédiction
+- Formulaire interactif pour entrer les caractéristiques client
+- Affichage de la probabilité de churn
+- Jauge visuelle du risque
+- Recommandations personnalisées
+
+### 2. 📊 Exploration des Données
+- Statistiques descriptives
+- Distribution du churn
+- Histogrammes par feature
+- Matrice de corrélation
+
+### 3. ⚠️ Détection de Drift
+- Analyse des changements de distribution
+- Test de Kolmogorov-Smirnov
+- Visualisation comparative
+- Alertes et recommandations
+
+### 4. 📈 Métriques du Modèle
+- Accuracy, Precision, Recall, F1, ROC AUC
+- Historique des entraînements MLflow
+- Matrice de confusion
+- Feature importance
+
+### 5. 🔧 Configuration
+- État des services (API, modèle)
+- Actions de maintenance
+- Génération de données de test
+
+---
 
 ## ⚠️ Détection de Data Drift
 
-Le système utilise le test de Kolmogorov-Smirnov pour détecter les changements de distribution :
+### Utilisation via Python
 
 ```python
 from app.drift_detect import DriftDetector
@@ -172,115 +418,546 @@ prod_data = pd.read_csv("data/production_data.csv")
 
 # Détecter le drift
 results = detector.detect_all(ref_data, prod_data)
+
+# Générer le rapport
 report = detector.generate_report(results)
 
 print(f"Risk Level: {report['summary']['risk_level']}")
 print(f"Drifted Features: {report['summary']['drifted_features']}")
 ```
 
-## 🚀 Déploiement Azure
+### Générer des Données de Production Simulées
 
-### Prérequis Azure
+```python
+from app.drift_detect import generate_drift_data
 
-1. Compte Azure avec abonnement actif
-2. Azure CLI installé et connecté
-3. Docker Desktop en cours d'exécution
+generate_drift_data(
+    reference_file="data/bank_churn.csv",
+    output_file="data/production_data.csv",
+    drift_features={
+        "Age": {"shift": 5, "scale": 1.0},
+        "Balance": {"shift": 0, "scale": 1.2},
+        "CreditScore": {"shift": -30, "scale": 1.0}
+    }
+)
+```
+
+---
+
+## 🐳 Conteneurisation Docker
+
+### Construire l'Image de l'API
+
+```bash
+# Construire l'image
+docker build -t bank-churn-api:v1 .
+
+# Vérifier l'image
+docker images bank-churn-api
+
+# Lancer le conteneur
+docker run -d -p 8000:8000 --name churn-api bank-churn-api:v1
+
+# Voir les logs
+docker logs churn-api
+
+# Arrêter et supprimer
+docker stop churn-api
+docker rm churn-api
+```
+
+### Construire l'Image Streamlit
+
+```bash
+# Construire l'image Streamlit
+docker build -f Dockerfile.streamlit -t bank-churn-streamlit:v1 .
+
+# Lancer le conteneur
+docker run -d -p 8501:8501 --name churn-dashboard bank-churn-streamlit:v1
+```
+
+### Docker Compose (Tous les Services)
+
+```bash
+# Construire et lancer
+docker-compose up --build
+
+# Lancer en arrière-plan
+docker-compose up -d
+
+# Voir les logs
+docker-compose logs -f
+
+# Arrêter
+docker-compose down
+
+# Arrêter et supprimer les volumes
+docker-compose down -v
+```
+
+---
+
+## ☁️ Déploiement Azure
+
+### Configuration Azure
+
+| Ressource | Valeur |
+|-----------|--------|
+| Resource Group | `rg-nlp-deployment` |
+| Container Registry (ACR) | `mlopsashash` |
+| Container Apps Environment | `env-nlp` |
+| API Container App | `bank-churn` |
+| Dashboard Container App | `bank-churn-dashboard` |
+| Région | `swedencentral` |
+
+### Commandes Azure CLI
+
+#### Connexion à Azure
+
+```bash
+# Se connecter
+az login
+
+# Vérifier l'abonnement
+az account show
+
+# Lister les ressources
+az group list -o table
+```
+
+#### Gérer le Container Registry
+
+```bash
+# Se connecter à l'ACR
+az acr login --name mlopsashash
+
+# Lister les images
+az acr repository list --name mlopsashash -o table
+
+# Voir les tags d'une image
+az acr repository show-tags --name mlopsashash --repository bank-churn-api
+```
+
+#### Gérer les Container Apps
+
+```bash
+# Lister les Container Apps
+az containerapp list --resource-group rg-nlp-deployment -o table
+
+# Voir les logs de l'API
+az containerapp logs show \
+  --name bank-churn \
+  --resource-group rg-nlp-deployment \
+  --tail 100
+
+# Voir les logs du Dashboard
+az containerapp logs show \
+  --name bank-churn-dashboard \
+  --resource-group rg-nlp-deployment \
+  --tail 100
+
+# Redémarrer une app
+az containerapp revision restart \
+  --name bank-churn \
+  --resource-group rg-nlp-deployment
+
+# Obtenir l'URL
+az containerapp show \
+  --name bank-churn \
+  --resource-group rg-nlp-deployment \
+  --query properties.configuration.ingress.fqdn -o tsv
+```
+
+#### Déploiement Manuel
+
+```bash
+# Build et push de l'image
+docker build -t mlopsashash.azurecr.io/bank-churn-api:latest .
+az acr login --name mlopsashash
+docker push mlopsashash.azurecr.io/bank-churn-api:latest
+
+# Mettre à jour la Container App
+az containerapp update \
+  --name bank-churn \
+  --resource-group rg-nlp-deployment \
+  --image mlopsashash.azurecr.io/bank-churn-api:latest
+```
+
+---
+
+## 🔄 Pipeline CI/CD GitHub Actions
 
 ### Secrets GitHub à Configurer
 
+Allez sur : **https://github.com/Medash69/workshop-MLOPS-bank-churn/settings/secrets/actions**
+
 | Secret | Description |
 |--------|-------------|
-| `AZURE_CREDENTIALS` | Credentials JSON du Service Principal |
-| `ACR_USERNAME` | Nom d'utilisateur du Container Registry |
-| `ACR_PASSWORD` | Mot de passe du Container Registry |
+| `AZURE_CREDENTIALS` | JSON du Service Principal Azure |
+| `ACR_USERNAME` | Username du Container Registry (`mlopsashash`) |
+| `ACR_PASSWORD` | Password du Container Registry |
 
-### Déploiement Manuel
-
-```bash
-# Exécuter le script de déploiement
-chmod +x deploy.sh
-./deploy.sh
-```
-
-### CI/CD Automatique
-
-Le pipeline GitHub Actions se déclenche automatiquement sur push vers `main` :
-
-1. ✅ Exécution des tests
-2. 🔨 Build des images Docker (API + Streamlit)
-3. 📤 Push vers Azure Container Registry
-4. 🚀 Déploiement sur Azure Container Apps
-5. 🩺 Vérification du déploiement
-
-## 🧪 Tests
+### Créer le Service Principal Azure
 
 ```bash
-# Exécuter tous les tests
-pytest tests/ -v
-
-# Avec couverture
-pytest tests/ -v --cov=app --cov-report=term
-
-# Rapport HTML
-pytest tests/ -v --cov=app --cov-report=html
+az ad sp create-for-rbac \
+  --name "github-mlops-sp" \
+  --role contributor \
+  --scopes /subscriptions/924feefb-f89f-423a-a62f-3d81583d01da \
+  --json-auth
 ```
+
+### Récupérer les Credentials ACR
+
+```bash
+# Username
+az acr credential show --name mlopsashash --query username -o tsv
+
+# Password
+az acr credential show --name mlopsashash --query "passwords[0].value" -o tsv
+```
+
+### Structure du Pipeline
+
+```yaml
+# .github/workflows/ci-cd.yml
+
+Jobs:
+1. test                        # Exécute pytest avec couverture
+2. build-and-deploy-api        # Build et déploie l'API
+3. build-and-deploy-streamlit  # Build et déploie Streamlit
+```
+
+### Déclencheurs
+
+- **Push sur main** : Déploiement automatique
+- **Pull Request** : Tests uniquement
+- **Manual** : Via workflow_dispatch
+
+### Relancer le Pipeline Manuellement
+
+1. Aller sur **Actions** dans GitHub
+2. Cliquer sur **CI/CD Pipeline**
+3. Cliquer sur **Run workflow**
+
+---
 
 ## 📈 MLflow Tracking
 
-```bash
-# Lancer l'UI MLflow
-mlflow ui --port 5000
+### Lancer l'Interface MLflow
 
-# Accéder à http://localhost:5000
+```bash
+mlflow ui --port 5000
 ```
 
-## 🛠️ Commandes Utiles
+### Voir les Expériences
+
+```python
+import mlflow
+
+# Configurer le tracking
+mlflow.set_tracking_uri("./mlruns")
+
+# Lister les expériences
+experiments = mlflow.search_experiments()
+for exp in experiments:
+    print(f"{exp.name}: {exp.experiment_id}")
+
+# Lister les runs
+runs = mlflow.search_runs(experiment_ids=["159076234787646138"])
+print(runs[['run_id', 'metrics.accuracy', 'metrics.f1_score']])
+```
+
+### Charger un Modèle depuis MLflow
+
+```python
+import mlflow.sklearn
+
+# Charger le modèle enregistré
+model = mlflow.sklearn.load_model("models:/bank-churn-classifier/latest")
+
+# Faire une prédiction
+prediction = model.predict([[650, 35, 5, 50000, 2, 1, 1, 75000, 0, 1]])
+```
+
+---
+
+## 🧪 Tests
+
+### Exécuter Tous les Tests
 
 ```bash
-# Entraîner le modèle
+# Tests simples
+pytest tests/ -v
+
+# Tests avec couverture
+pytest tests/ -v --cov=app --cov-report=term
+
+# Rapport HTML de couverture
+pytest tests/ -v --cov=app --cov-report=html
+
+# Ouvrir le rapport (Windows)
+start htmlcov/index.html
+
+# Ouvrir le rapport (Mac)
+open htmlcov/index.html
+```
+
+### Structure des Tests
+
+```
+tests/
+├── test_api.py           # Tests des endpoints API
+├── test_model.py         # Tests du modèle ML (à créer)
+└── test_drift.py         # Tests de détection de drift (à créer)
+```
+
+---
+
+## 📁 Structure du Projet
+
+```
+bank-churn-mlops/
+│
+├── 📂 .github/
+│   └── 📂 workflows/
+│       └── ci-cd.yml              # Pipeline CI/CD
+│
+├── 📂 app/                        # Code de l'API
+│   ├── __init__.py
+│   ├── main.py                    # Endpoints FastAPI
+│   ├── models.py                  # Schémas Pydantic
+│   ├── drift_detect.py            # Détection de drift
+│   ├── drift_data_gen.py          # Génération de données
+│   └── utils.py                   # Fonctions utilitaires
+│
+├── 📂 data/                       # Données
+│   ├── bank_churn.csv             # Dataset d'entraînement
+│   └── production_data.csv        # Données de production
+│
+├── 📂 model/                      # Modèles sauvegardés
+│   └── churn_model.pkl            # Modèle Random Forest
+│
+├── 📂 mlruns/                     # Expériences MLflow
+│   └── ...
+│
+├── 📂 tests/                      # Tests unitaires
+│   └── test_api.py
+│
+├── 📂 drift_reports/              # Rapports de drift
+│   └── *.json
+│
+├── 📄 streamlit_app.py            # Dashboard Streamlit
+├── 📄 train_model.py              # Script d'entraînement
+├── 📄 generate_data.py            # Génération du dataset
+│
+├── 🐳 Dockerfile                  # Image Docker API
+├── 🐳 Dockerfile.streamlit        # Image Docker Streamlit
+├── 🐳 docker-compose.yml          # Orchestration Docker
+├── 🐳 .dockerignore               # Fichiers ignorés par Docker
+│
+├── 📄 requirements.txt            # Dépendances Python
+├── 📄 start.bat                   # Script Windows
+├── 📄 start.sh                    # Script Linux/Mac
+├── 📄 .gitignore                  # Fichiers ignorés par Git
+└── 📄 README.md                   # Ce fichier
+```
+
+---
+
+## 🛠 Commandes Utiles
+
+### Commandes de Démarrage Rapide
+
+```bash
+# 1. Cloner le projet
+git clone https://github.com/Medash69/workshop-MLOPS-bank-churn.git
+cd workshop-MLOPS-bank-churn
+
+# 2. Créer et activer l'environnement virtuel
+python -m venv venv
+.\venv\Scripts\Activate.ps1  # Windows PowerShell
+
+# 3. Installer les dépendances
+pip install -r requirements.txt
+
+# 4. Entraîner le modèle
 python train_model.py
 
-# Générer des données de test
-python generate_data.py
+# 5. Lancer l'API (Terminal 1)
+uvicorn app.main:app --reload --port 8000
 
-# Vérifier le drift
-python -c "from app.drift_detect import detect_drift; detect_drift('data/bank_churn.csv', 'data/production_data.csv')"
-
-# Docker - voir les logs
-docker logs -f bank-churn-api
-docker logs -f bank-churn-dashboard
-
-# Docker - arrêter les services
-docker-compose down
-
-# Docker - nettoyer
-docker-compose down --rmi all --volumes
+# 6. Lancer le Dashboard (Terminal 2)
+streamlit run streamlit_app.py --server.port 8501
 ```
 
-## 📚 Technologies Utilisées
+### Git
 
-- **ML/Data** : scikit-learn, pandas, numpy, scipy
-- **API** : FastAPI, uvicorn, pydantic
-- **Dashboard** : Streamlit, Plotly
-- **MLOps** : MLflow, pytest
-- **Cloud** : Azure Container Apps, Azure Container Registry
-- **CI/CD** : GitHub Actions
-- **Conteneurisation** : Docker, Docker Compose
+```bash
+# Voir le statut
+git status
 
-## 🔧 Configuration
+# Ajouter tous les fichiers
+git add -A
 
-### Variables d'Environnement
+# Committer
+git commit -m "votre message"
+
+# Pousser sur GitHub
+git push origin main
+
+# Récupérer les dernières modifications
+git pull origin main
+```
+
+### Python/Pip
+
+```bash
+# Installer les dépendances
+pip install -r requirements.txt
+
+# Mettre à jour une dépendance
+pip install --upgrade <package>
+
+# Sauvegarder les dépendances
+pip freeze > requirements.txt
+```
+
+### Docker
+
+```bash
+# Lister les conteneurs
+docker ps -a
+
+# Lister les images
+docker images
+
+# Supprimer un conteneur
+docker rm <container_id>
+
+# Supprimer une image
+docker rmi <image_id>
+
+# Nettoyer les ressources inutilisées
+docker system prune -a
+```
+
+### Azure
+
+```bash
+# Se connecter
+az login
+
+# Voir les logs
+az containerapp logs show --name bank-churn --resource-group rg-nlp-deployment --tail 50
+
+# Redémarrer l'app
+az containerapp revision restart --name bank-churn --resource-group rg-nlp-deployment
+```
+
+---
+
+## 🔧 Dépannage
+
+### Problème : Le modèle n'est pas trouvé
+
+```bash
+# Solution : Entraîner le modèle
+python train_model.py
+```
+
+### Problème : L'API ne répond pas
+
+```bash
+# Vérifier si le port est utilisé
+netstat -ano | findstr :8000
+
+# Tuer le processus (Windows)
+taskkill /PID <PID> /F
+
+# Relancer l'API
+uvicorn app.main:app --reload --port 8000
+```
+
+### Problème : Erreur Docker "port already in use"
+
+```bash
+# Arrêter tous les conteneurs
+docker stop $(docker ps -aq)
+
+# Relancer
+docker-compose up --build
+```
+
+### Problème : Tests échouent
+
+```bash
+# Vérifier que le modèle existe
+python train_model.py
+
+# Relancer les tests
+pytest tests/ -v
+```
+
+### Problème : Déploiement Azure échoue
+
+```bash
+# Vérifier les secrets GitHub
+# https://github.com/Medash69/workshop-MLOPS-bank-churn/settings/secrets/actions
+
+# Vérifier la connexion Azure
+az login
+az account show
+
+# Vérifier l'ACR
+az acr login --name mlopsashash
+```
+
+---
+
+## 📝 Variables d'Environnement
 
 | Variable | Description | Défaut |
 |----------|-------------|--------|
 | `MODEL_PATH` | Chemin vers le modèle | `model/churn_model.pkl` |
 | `API_URL` | URL de l'API FastAPI | `http://localhost:8000` |
-| `APPLICATIONINSIGHTS_CONNECTION_STRING` | Azure Application Insights | - |
+| `APPLICATIONINSIGHTS_CONNECTION_STRING` | Azure App Insights | - |
 
-## 📝 Auteur
+---
+
+## 📊 Métriques du Modèle
+
+| Métrique | Valeur |
+|----------|--------|
+| Accuracy | ~0.86 |
+| Precision | ~0.78 |
+| Recall | ~0.65 |
+| F1 Score | ~0.71 |
+| ROC AUC | ~0.89 |
+
+---
+
+## 👨‍💻 Auteur
 
 **Workshop MLOps avec Azure**
+- GitHub : https://github.com/Medash69
+
+---
 
 ## 📄 Licence
 
 Ce projet est sous licence MIT.
+
+---
+
+## 🙏 Remerciements
+
+- FastAPI pour le framework API
+- Streamlit pour le dashboard
+- MLflow pour le tracking
+- Azure pour l'hébergement cloud
+- Scikit-learn pour le modèle ML
+
+---
+
+**Dernière mise à jour :** Janvier 2026
