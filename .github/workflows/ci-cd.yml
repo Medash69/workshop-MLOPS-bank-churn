@@ -93,15 +93,47 @@ jobs:
           docker push ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
           echo "✅ API image pushed successfully"
       
+      - name: Create or Update Container Apps Environment
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            # Check if environment exists, create if not
+            if ! az containerapp env show --name env-mlops-workshop --resource-group ${{ env.AZURE_RESOURCE_GROUP }} 2>/dev/null; then
+              echo "🆕 Creating Container Apps Environment..."
+              az containerapp env create \
+                --name env-mlops-workshop \
+                --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+                --location westeurope
+            fi
+            echo "✅ Environment ready"
+      
       - name: Deploy API to Azure Container Apps
         uses: azure/CLI@v1
         with:
           inlineScript: |
-            az containerapp update \
-              --name ${{ env.CONTAINER_APP_NAME }} \
-              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-              --image ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
-            echo "✅ API deployment command sent"
+            # Check if app exists
+            if az containerapp show --name ${{ env.CONTAINER_APP_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} 2>/dev/null; then
+              echo "📝 Updating existing Container App..."
+              az containerapp update \
+                --name ${{ env.CONTAINER_APP_NAME }} \
+                --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+                --image ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            else
+              echo "🆕 Creating new Container App..."
+              az containerapp create \
+                --name ${{ env.CONTAINER_APP_NAME }} \
+                --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+                --environment env-mlops-workshop \
+                --image ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+                --target-port 8000 \
+                --ingress external \
+                --registry-server ${{ env.ACR_NAME }}.azurecr.io \
+                --registry-username ${{ secrets.ACR_USERNAME }} \
+                --registry-password ${{ secrets.ACR_PASSWORD }} \
+                --min-replicas 1 \
+                --max-replicas 3
+            fi
+            echo "✅ API deployment complete"
       
       - name: Verify API deployment
         run: |
