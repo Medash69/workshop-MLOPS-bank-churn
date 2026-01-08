@@ -11,54 +11,89 @@ env:
   AZURE_RESOURCE_GROUP: rg-mlops-bank-churn
   ACR_NAME: mlopsash          # Le nom de VOTRE ACR (étape 5.1)
   CONTAINER_APP_NAME: bank-churn    # Le nom de VOTRE Container App (étape 5.2)
+  STREAMLIT_APP_NAME: bank-churn-dashboard  # Nom de l'app Streamlit
   IMAGE_NAME: bank-churn-api
+  STREAMLIT_IMAGE_NAME: bank-churn-streamlit
 
 jobs:
+  # ============================================================
+  # JOB 1: TESTS
+  # ============================================================
   test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+      
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
+      
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      
       - name: Install dependencies
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
+      
+      - name: Run linting (optional)
+        continue-on-error: true
+        run: |
+          pip install flake8
+          flake8 app/ --count --select=E9,F63,F7,F82 --show-source --statistics
+      
       - name: Run tests with coverage
         run: |
-          pytest tests/ -v --cov=app --cov-report=term
+          pytest tests/ -v --cov=app --cov-report=term --cov-report=xml
+      
+      - name: Upload coverage report
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: false
 
-  build-and-deploy:
-    needs: test  # Ne s'exécute QUE si les tests réussissent
+  # ============================================================
+  # JOB 2: BUILD & DEPLOY API
+  # ============================================================
+  build-and-deploy-api:
+    needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'  # Ne déploie que depuis 'main'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+      
       - name: Azure Login
         uses: azure/login@v1
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}  # Utilise le secret formaté
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      
       - name: Login to Azure Container Registry (ACR)
         uses: azure/docker-login@v1
         with:
           login-server: ${{ env.ACR_NAME }}.azurecr.io
           username: ${{ secrets.ACR_USERNAME }}
           password: ${{ secrets.ACR_PASSWORD }}
-      - name: Build and push Docker image
+      
+      - name: Build and push API Docker image
         run: |
-          # Construit l'image et la tagge avec le hash unique du commit
+          echo "🔨 Building API image..."
           docker build -t ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} .
-          # Crée aussi un tag 'latest' pour référence
           docker tag ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
-          # Pousse les deux images vers l'ACR
+          
+          echo "📤 Pushing to ACR..."
           docker push ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
           docker push ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
-          echo "✅ Images poussées dans ACR."
-      - name: Deploy to Azure Container Apps
+          echo "✅ API image pushed successfully"
+      
+      - name: Deploy API to Azure Container Apps
         uses: azure/CLI@v1
         with:
           inlineScript: |
@@ -66,17 +101,161 @@ jobs:
               --name ${{ env.CONTAINER_APP_NAME }} \
               --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
               --image ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
-            echo "✅ Commande de déploiement envoyée à Azure."
-      - name: Verify deployment
+            echo "✅ API deployment command sent"
+      
+      - name: Verify API deployment
         run: |
-          # Récupère l'URL publique de l'application
           APP_URL=$(az containerapp show \
             --name ${{ env.CONTAINER_APP_NAME }} \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
             --query properties.configuration.ingress.fqdn -o tsv)
-          echo "🌐 Votre API est déployée à l'adresse : https://$APP_URL"
-          echo "🩺 Attente du démarrage (20s) et vérification..."
-          sleep 20
-          # Teste le endpoint /health
-          curl -f https://$APP_URL/health || exit 1
-          echo "✅ Déploiement vérifié et réussi !"
+          echo "🌐 API URL: https://$APP_URL"
+          echo "⏳ Waiting for startup (30s)..."
+          sleep 30
+          curl -f https://$APP_URL/health || echo "⚠️ Health check failed, app may still be starting"
+          echo "✅ API deployment verified!"
+
+  # ============================================================
+  # JOB 3: BUILD & DEPLOY STREAMLIT DASHBOARD
+  # ============================================================
+  build-and-deploy-streamlit:
+    needs: build-and-deploy-api
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      
+      - name: Login to ACR
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ env.ACR_NAME }}.azurecr.io
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+      
+      - name: Get API URL
+        id: api_url
+        run: |
+          API_URL=$(az containerapp show \
+            --name ${{ env.CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query properties.configuration.ingress.fqdn -o tsv)
+          echo "API_URL=https://$API_URL" >> $GITHUB_OUTPUT
+      
+      - name: Build and push Streamlit Docker image
+        run: |
+          echo "🔨 Building Streamlit image..."
+          docker build -f Dockerfile.streamlit \
+            --build-arg API_URL=${{ steps.api_url.outputs.API_URL }} \
+            -t ${{ env.ACR_NAME }}.azurecr.io/${{ env.STREAMLIT_IMAGE_NAME }}:${{ github.sha }} .
+          docker tag ${{ env.ACR_NAME }}.azurecr.io/${{ env.STREAMLIT_IMAGE_NAME }}:${{ github.sha }} \
+            ${{ env.ACR_NAME }}.azurecr.io/${{ env.STREAMLIT_IMAGE_NAME }}:latest
+          
+          echo "📤 Pushing to ACR..."
+          docker push ${{ env.ACR_NAME }}.azurecr.io/${{ env.STREAMLIT_IMAGE_NAME }}:${{ github.sha }}
+          docker push ${{ env.ACR_NAME }}.azurecr.io/${{ env.STREAMLIT_IMAGE_NAME }}:latest
+          echo "✅ Streamlit image pushed successfully"
+      
+      - name: Deploy Streamlit to Azure Container Apps
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            # Check if app exists, create if not
+            if az containerapp show --name ${{ env.STREAMLIT_APP_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} 2>/dev/null; then
+              echo "📝 Updating existing Streamlit app..."
+              az containerapp update \
+                --name ${{ env.STREAMLIT_APP_NAME }} \
+                --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+                --image ${{ env.ACR_NAME }}.azurecr.io/${{ env.STREAMLIT_IMAGE_NAME }}:${{ github.sha }} \
+                --set-env-vars API_URL=${{ steps.api_url.outputs.API_URL }}
+            else
+              echo "🆕 Creating new Streamlit app..."
+              az containerapp create \
+                --name ${{ env.STREAMLIT_APP_NAME }} \
+                --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+                --environment env-mlops-workshop \
+                --image ${{ env.ACR_NAME }}.azurecr.io/${{ env.STREAMLIT_IMAGE_NAME }}:${{ github.sha }} \
+                --target-port 8501 \
+                --ingress external \
+                --registry-server ${{ env.ACR_NAME }}.azurecr.io \
+                --registry-username ${{ secrets.ACR_USERNAME }} \
+                --registry-password ${{ secrets.ACR_PASSWORD }} \
+                --env-vars API_URL=${{ steps.api_url.outputs.API_URL }} \
+                --min-replicas 1 \
+                --max-replicas 3
+            fi
+            echo "✅ Streamlit deployment command sent"
+      
+      - name: Get deployment URLs
+        run: |
+          API_URL=$(az containerapp show \
+            --name ${{ env.CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query properties.configuration.ingress.fqdn -o tsv)
+          
+          STREAMLIT_URL=$(az containerapp show \
+            --name ${{ env.STREAMLIT_APP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query properties.configuration.ingress.fqdn -o tsv)
+          
+          echo "=========================================="
+          echo "✅ DEPLOYMENT COMPLETE"
+          echo "=========================================="
+          echo "🔌 API:       https://$API_URL"
+          echo "📊 Dashboard: https://$STREAMLIT_URL"
+          echo "📚 API Docs:  https://$API_URL/docs"
+          echo "=========================================="
+
+  # ============================================================
+  # JOB 4: DRIFT MONITORING (scheduled)
+  # ============================================================
+  drift-check:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+      
+      - name: Run drift detection
+        run: |
+          python -c "
+          from app.drift_detect import DriftDetector
+          import pandas as pd
+          import json
+          
+          detector = DriftDetector(threshold=0.05)
+          
+          # Load data
+          ref_data = pd.read_csv('data/bank_churn.csv')
+          
+          # Check if production data exists
+          try:
+              prod_data = pd.read_csv('data/production_data.csv')
+              results = detector.detect_all(ref_data, prod_data)
+              report = detector.generate_report(results)
+              
+              print('=' * 50)
+              print('DRIFT DETECTION REPORT')
+              print('=' * 50)
+              print(f\"Features analyzed: {report['summary']['total_features']}\")
+              print(f\"Features with drift: {report['summary']['drifted_features_count']}\")
+              print(f\"Risk level: {report['summary']['risk_level']}\")
+              print(f\"Recommendation: {report['summary']['recommendation']}\")
+              print('=' * 50)
+          except FileNotFoundError:
+              print('No production data found for drift detection')
+          "

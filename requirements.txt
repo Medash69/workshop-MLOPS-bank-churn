@@ -21,10 +21,16 @@ httpx==0.25.2
 python-multipart==0.0.6
 requests==2.31.0
 
-# ... tes autres dépendances ...
+# Streamlit Dashboard
+streamlit==1.29.0
+plotly==5.18.0
+watchdog==3.0.0
+
+# Monitoring & Drift Detection
 opencensus-ext-azure==1.1.9
-scipy
-seaborn==0.12.2
-matplotlib==3.7.1
-# opencensus-ext-requests==0.12.1
-scipy
+scipy==1.11.4
+seaborn==0.13.0
+matplotlib==3.8.2
+
+# Production
+gunicorn==21.2.0

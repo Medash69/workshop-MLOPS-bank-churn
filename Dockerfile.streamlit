@@ -1,0 +1,30 @@
+# Dockerfile pour Streamlit Dashboard
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# Copier les dépendances
+COPY requirements.txt .
+
+# Installer les dépendances
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copier l'application
+COPY streamlit_app.py .
+COPY app/ ./app/
+COPY model/ ./model/
+COPY data/ ./data/
+
+# Variables d'environnement
+ENV STREAMLIT_SERVER_PORT=8501
+ENV STREAMLIT_SERVER_ADDRESS=0.0.0.0
+ENV API_URL=http://localhost:8000
+
+# Exposer le port Streamlit
+EXPOSE 8501
+
+# Healthcheck
+HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health || exit 1
+
+# Lancer Streamlit
+CMD ["streamlit", "run", "streamlit_app.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true"]
